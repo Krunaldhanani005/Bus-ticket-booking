@@ -73,13 +73,6 @@ A web-based booking system for the Ahmedabad → Mumbai sleeper bus route, featu
 
 ## Design Prototype
 
-You can interact with the live Figma prototype here:
-
-[🎨 View Figma Prototype](https://www.figma.com/proto/vO7y740gwfjw6OUidVZfbQ/Bus-ticket-booking-system?node-id=79-249&t=kTEhQdVeDmYE4Eeg-1)
-
-A comprehensive **Design System & Prototype Guide** is also available.
-You can view the full specifications for the Color Paradigm, Component Library, and Screen Layouts here:
-
-[📂 View Design Prototype Guide](./DESIGN_PROTOTYPE.md)
-
-This guide provides all the necessary attributes (Color Hex codes, Typography, Dimensions) to recreate the high-fidelity UI in Figma or Adobe XD.
+You can interact with the live Figma prototype here.
+Figma Prototype:
+https://www.figma.com/proto/vO7y740gwfjw6OUidVZfbQ/Bus-ticket-booking-system?node-id=79-249&t=kTEhQdVeDmYE4Eeg-1
