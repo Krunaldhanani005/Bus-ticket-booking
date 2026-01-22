@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmation - Sleeper Bus</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/api.js"></script>
+</head>
+
+<body>
+    <header>
+        <h1>Booking Confirmed!</h1>
+    </header>
+
+    <div class="container" style="text-align: center;">
+        <div class="card">
+            <div style="color: green; font-size: 48px;">&#10004;</div>
+            <h2>Your Ticket is Booked</h2>
+
+            <div style="text-align: left; margin: 20px auto; max-width: 400px; line-height: 1.6;">
+                <p><strong>Booking ID:</strong> <span id="booking-id">Loading...</span></p>
+                <p><strong>Passenger:</strong> <span id="passenger"></span></p>
+                <p><strong>Route:</strong> <span id="route"></span></p>
+                <p><strong>Date:</strong> <span id="date"></span></p>
+                <p><strong>Seat:</strong> <span id="seat"></span></p>
+                <p><strong>Meal:</strong> <span id="meal"></span></p>
+            </div>
+
+            <div class="alert">
+                <h3>AI Prediction</h3>
+                <p>Confirmation Probability</p>
+                <div class="prediction-badge" id="probability" style="font-size: 24px;">%</div>
+                <p style="font-size: 12px; color: #666; margin-top: 5px;">(Simulated AI Model Output)</p>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button onclick="window.location.href='/static/home.html'">Go to Home</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const booking = JSON.parse(localStorage.getItem('last_booking'));
+        const searchParams = JSON.parse(localStorage.getItem('search_params'));
+
+        if (!booking || !searchParams) {
+            alert("No booking info found");
+            window.location.href = '/static/home.html';
+        }
+
+        document.getElementById('booking-id').innerText = booking.id;
+        document.getElementById('passenger').innerText = booking.user_email;
+        document.getElementById('route').innerText = `${searchParams.sName} → ${searchParams.dName}`;
+        document.getElementById('date').innerText = booking.travel_date;
+        document.getElementById('meal').innerText = booking.meal_choice;
+        document.getElementById('probability').innerText = booking.p_success.toFixed(1) + "%";
+
+        // Seat info is just ID in booking obj, strictly we should look it up or pass it, 
+        // but for now let's just use what we have or generic
+        // We can display "Seat ID: " + booking.seat_id for now as we didn't fetch the seat number in response strictly
+        // Update: schema for booking response doesn't nest Seat object fully?
+        // Let's check schemas.py. Booking schema inherits BookingCreate.
+        // It doesn't include the nested Seat object.
+        // So we just show "Seat ID: ..." or we API call.
+        // Or we rely on the fact that the user just clicked it.
+        // Let's just show Seat ID or re-fetch.
+
+        async function fetchSeatDetails() {
+            // We can't easy fetch just seat by ID without a specific endpoint or querying all seats.
+            // We have /bookings/seats/{bus_id}
+            // Let's just trust the user remembers or basic info.
+            document.getElementById('seat').innerText = "Booked (ID: " + booking.seat_id + ")";
+        }
+        fetchSeatDetails();
+
+    </script>
+</body>
+
+</html>

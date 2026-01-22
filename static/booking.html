@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Seat - Sleeper Bus</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/api.js"></script>
+</head>
+
+<body>
+    <header>
+        <h1>Select Seats</h1>
+        <button onclick="window.history.back()"
+            style="width: auto; position: absolute; left: 20px; top: 20px; background: none; border: 1px solid white;">Back</button>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h3>Journey Details</h3>
+            <p id="journey-info"></p>
+        </div>
+
+        <div class="card bus-layout">
+            <div style="display: flex; gap: 40px;">
+                <!-- Lower Deck -->
+                <div class="deck" data-label="Lower Deck">
+                    <div class="seat-grid" id="lower-deck"></div>
+                </div>
+
+                <!-- Upper Deck -->
+                <div class="deck" data-label="Upper Deck">
+                    <div class="seat-grid" id="upper-deck"></div>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; display: flex; gap: 20px;">
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <div class="seat" style="width:20px; height:20px;"></div> Available
+                </div>
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <div class="seat booked" style="width:20px; height:20px;"></div> Booked
+                </div>
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <div class="seat selected" style="width:20px; height:20px;"></div> Selected
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Booking Details</h3>
+            <div class="form-group">
+                <label>Selected Seat: <span id="selected-seat-display">-</span></label>
+            </div>
+            <div class="form-group">
+                <label>Select Meal</label>
+                <select id="meal-choice">
+                    <option value="None">No Meal</option>
+                    <option value="Veg">Veg Meal</option>
+                    <option value="Non-Veg">Non-Veg Meal</option>
+                    <option value="Jain">Jain Meal</option>
+                </select>
+            </div>
+            <button onclick="confirmBooking()" id="confirm-btn" disabled>Confirm Booking</button>
+        </div>
+    </div>
+
+    <script>
+        const searchParams = JSON.parse(localStorage.getItem('search_params'));
+        if (!searchParams) window.location.href = '/static/home.html';
+
+        document.getElementById('journey-info').innerText = `${searchParams.sName} to ${searchParams.dName} on ${searchParams.date}`;
+
+        let selectedSeatId = null;
+        let busId = 1; // Single bus assumption
+
+        async function loadSeats() {
+            // 1. Get all seats for the bus
+            // 2. Get availability for the date
+
+            const [seats, bookedSeatIds] = await Promise.all([
+                apiCall(`/bookings/seats/${busId}`),
+                apiCall(`/bookings/availability?source_id=${searchParams.source}&dest_id=${searchParams.dest}&date=${searchParams.date}`)
+            ]);
+
+            const lowerDeck = document.getElementById('lower-deck');
+            const upperDeck = document.getElementById('upper-deck');
+
+            seats.forEach(seat => {
+                const isBooked = bookedSeatIds.includes(seat.id);
+                const el = document.createElement('div');
+                el.className = `seat ${isBooked ? 'booked' : ''}`;
+                el.innerText = seat.seat_number;
+                el.onclick = () => selectSeat(seat.id, seat.seat_number, isBooked, el);
+
+                if (seat.seat_number.startsWith('L')) {
+                    lowerDeck.appendChild(el);
+                } else {
+                    upperDeck.appendChild(el);
+                }
+            });
+        }
+
+        function selectSeat(id, number, isBooked, element) {
+            if (isBooked) return;
+
+            // Deselect previous
+            document.querySelectorAll('.seat.selected').forEach(s => s.classList.remove('selected'));
+
+            // Select new
+            element.classList.add('selected');
+            selectedSeatId = id;
+            document.getElementById('selected-seat-display').innerText = number;
+            document.getElementById('confirm-btn').disabled = false;
+        }
+
+        async function confirmBooking() {
+            if (!selectedSeatId) return;
+
+            const bookingData = {
+                user_email: getCurrentUser(),
+                source_station_id: parseInt(searchParams.source),
+                dest_station_id: parseInt(searchParams.dest),
+                seat_id: selectedSeatId,
+                travel_date: searchParams.date,
+                meal_choice: document.getElementById('meal-choice').value
+            };
+
+            try {
+                const booking = await apiCall('/bookings/', 'POST', bookingData);
+                localStorage.setItem('last_booking', JSON.stringify(booking));
+                window.location.href = '/static/confirmation.html';
+            } catch (e) {
+                alert("Booking failed");
+            }
+        }
+
+        loadSeats();
+    </script>
+</body>
+
+</html>

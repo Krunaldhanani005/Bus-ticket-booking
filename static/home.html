@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - Sleeper Bus</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/api.js"></script>
+</head>
+
+<body>
+    <header>
+        <h1>Sleeper Bus Booking</h1>
+        <div style="text-align: right; padding-right: 20px;">
+            <span id="user-display"></span>
+            <button onclick="logoutUser()" style="width: auto; padding: 5px 10px; margin-left: 10px;">Logout</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Search Section -->
+        <div class="card">
+            <h2>Search Bus</h2>
+            <div class="form-group">
+                <label>Source Station</label>
+                <select id="source-station" onchange="updateDestinations()">
+                    <option value="">Select Source</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Destination Station</label>
+                <select id="dest-station">
+                    <option value="">Select Destination</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Travel Date</label>
+                <input type="date" id="travel-date">
+            </div>
+            <button onclick="searchBus()">Search Bus</button>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-area" class="card" style="display: none;">
+            <h3>Available Bus</h3>
+            <div
+                style="border: 1px solid #ddd; padding: 15px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>Express Sleeper (GJ-01-XX-1234)</strong><br>
+                    <span id="route-display"></span>
+                </div>
+                <button onclick="viewSeats()" style="width: auto;">View Seats</button>
+            </div>
+        </div>
+
+        <!-- History Section -->
+        <div class="card">
+            <h2>My Current Bookings</h2>
+            <div id="history-list">
+                <p>Loading history...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stations = [];
+        let currentUser = getCurrentUser();
+
+        if (!currentUser) window.location.href = '/static/index.html';
+        document.getElementById('user-display').innerText = currentUser;
+
+        // Set min date to today
+        document.getElementById('travel-date').min = new Date().toISOString().split('T')[0];
+
+        async function loadStations() {
+            stations = await apiCall('/stations/');
+            const sourceSelect = document.getElementById('source-station');
+            stations.forEach(s => {
+                let opt = document.createElement('option');
+                opt.value = s.id;
+                opt.text = s.name;
+                sourceSelect.add(opt);
+            });
+        }
+
+        function updateDestinations() {
+            const sourceId = parseInt(document.getElementById('source-station').value);
+            const destSelect = document.getElementById('dest-station');
+            destSelect.innerHTML = '<option value="">Select Destination</option>';
+
+            if (!sourceId) return;
+
+            const sourceStation = stations.find(s => s.id === sourceId);
+
+            stations.forEach(s => {
+                if (s.order > sourceStation.order) {
+                    let opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.text = s.name;
+                    destSelect.add(opt);
+                }
+            });
+        }
+
+        function searchBus() {
+            const source = document.getElementById('source-station').value;
+            const dest = document.getElementById('dest-station').value;
+            const date = document.getElementById('travel-date').value;
+
+            if (!source || !dest || !date) {
+                alert("Please fill all fields");
+                return;
+            }
+
+            // In a real app we would check availability count here via API
+            // For now just show the bus
+            document.getElementById('results-area').style.display = 'block';
+
+            const sName = stations.find(s => s.id == source).name;
+            const dName = stations.find(s => s.id == dest).name;
+            document.getElementById('route-display').innerText = `${sName} → ${dName} | Date: ${date}`;
+
+            // Store search params for next page
+            localStorage.setItem('search_params', JSON.stringify({ source, dest, date, sName, dName }));
+        }
+
+        function viewSeats() {
+            window.location.href = "/static/booking.html";
+        }
+
+        async function loadHistory() {
+            const list = document.getElementById('history-list');
+            try {
+                const bookings = await apiCall(`/bookings/user/${currentUser}`);
+
+                // Filter for confirmed bookings only
+                const activeBookings = bookings.filter(b => b.status === "CONFIRMED");
+
+                if (activeBookings.length === 0) {
+                    list.innerHTML = "<p>No active bookings</p>";
+                    return;
+                }
+
+                list.innerHTML = activeBookings.map(b => {
+                    return `
+                    <div class="booking-card" style="font-size: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div>
+                                <div style="font-size: 16px; font-weight: bold; margin-bottom: 3px;">
+                                    ${b.source_station.name} &rarr; ${b.dest_station.name}
+                                </div>
+                                <div style="color: #666; margin-bottom: 3px;">
+                                    <strong>Date:</strong> ${b.travel_date}
+                                </div>
+                                <div style="margin-bottom: 3px;">
+                                    <strong>Seat:</strong> ${b.seat.seat_number}
+                                </div>
+                                <div style="margin-bottom: 3px;">
+                                    <strong>Meal:</strong> ${b.meal_choice || 'None'}
+                                </div>
+                                <div style="margin-bottom: 5px; color: green; font-weight: bold;">
+                                    Status: CONFIRMED
+                                </div>
+                            </div>
+                            <div style="align-self: center;">
+                                <button class="cancel-btn" style="background-color: #e74c3c; color: white; padding: 6px 10px; font-size: 12px;" onclick="cancelBooking(${b.id})">Cancel Booking</button>
+                            </div>
+                        </div>
+                    </div>
+                `}).join('');
+            } catch (e) {
+                list.innerHTML = "<p>Failed to load history.</p>";
+            }
+        }
+
+        async function cancelBooking(id) {
+            if (!confirm("Are you sure you want to cancel?")) return;
+            await apiCall(`/bookings/cancel/${id}`, 'POST');
+            loadHistory();
+        }
+
+        loadStations();
+        loadHistory();
+    </script>
+</body>
+
+</html>
